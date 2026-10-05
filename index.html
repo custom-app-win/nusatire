@@ -3,11 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Transaksi Ban Bekas - NUSA TIRE</title>
+    <title>NUSA TIRE - Transaksi Ban Bekas</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- FIREBASE SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
     <style>
         :root {
             --primary-dark: #1E293B;
@@ -69,46 +74,63 @@
             border-left-color: #0284C7;
         }
 
-        .table-custom thead {
-            background-color: #0F172A;
-            color: #ffffff;
-        }
-
         .login-card {
-            max-width: 480px;
-            margin: 80px auto;
+            max-width: 450px;
+            margin: 60px auto;
         }
 
-        .motto-text {
-            color: var(--accent-green);
-            font-weight: 600;
-            letter-spacing: 0.5px;
+        /* TAMPILAN MOBILE RESPONSIVE TERSUSUN KE BAWAH */
+        @media (max-width: 768px) {
+            .table-mobile-responsive thead {
+                display: none;
+            }
+
+            .table-mobile-responsive tbody tr {
+                display: block;
+                background: #ffffff;
+                border: 1px solid #E2E8F0;
+                border-radius: 12px;
+                margin-bottom: 1rem;
+                padding: 1rem;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            }
+
+            .table-mobile-responsive tbody td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border: none !important;
+                padding: 0.4rem 0 !important;
+                border-bottom: 1px dashed #F1F5F9 !important;
+            }
+
+            .table-mobile-responsive tbody td:last-child {
+                border-bottom: none !important;
+                padding-top: 0.8rem !important;
+                justify-content: flex-end;
+            }
+
+            .table-mobile-responsive tbody td::before {
+                content: attr(data-label);
+                font-weight: 700;
+                font-size: 0.8rem;
+                color: #64748B;
+                text-transform: uppercase;
+                margin-right: 1rem;
+            }
         }
 
-        /* PRINT STYLING (FORMAT TEPAT 1 LEMBAR KERTAS A4) */
+        /* PRINT STYLING FOR A4 */
         @media print {
-            body * {
-                visibility: hidden;
-            }
-            #printArea, #printArea * {
-                visibility: visible;
-            }
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
             #printArea {
                 position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                padding: 20px;
-                color: #000;
-                background: #fff;
+                left: 0; top: 0; width: 100%;
+                padding: 20px; color: #000; background: #fff;
             }
-            .no-print {
-                display: none !important;
-            }
-            @page {
-                size: A4 portrait;
-                margin: 1.5cm;
-            }
+            .no-print { display: none !important; }
+            @page { size: A4 portrait; margin: 1.5cm; }
         }
     </style>
 </head>
@@ -116,32 +138,31 @@
 
     <!-- HALAMAN LOGIN -->
     <div id="loginSection" class="container no-print">
-        <div class="card card-custom login-card p-4">
-            <div class="text-center mb-4">
-                <i class="bi bi-truck text-warning display-4"></i>
-                <h3 class="fw-bold mt-2 text-dark mb-1">NUSA TIRE</h3>
-                <div class="motto-text small mb-2">WASTE LESS, VALUE MORE.</div>
-                <small class="text-muted d-block" style="font-size: 0.8rem; font-style: italic;">Driving the Green Economy</small>
+        <div class="card card-custom login-card p-4 text-center">
+            <i class="bi bi-truck text-warning display-4"></i>
+            <h3 class="fw-bold mt-2 text-dark mb-0">NUSA TIRE</h3>
+            <div class="text-warning fw-bold mb-3" style="font-size: 0.75rem; letter-spacing: 1px;">
+                WASTE LESS, VALUE MORE. Driving the Green Economy
             </div>
 
-            <div id="loginAlert" class="alert alert-danger d-none small">Password yang Anda masukkan salah!</div>
+            <div id="loginAlert" class="alert alert-danger d-none small">Password salah!</div>
 
-            <form onsubmit="handleLogin(event)">
+            <form onsubmit="handleLogin(event)" class="text-start">
                 <div class="mb-3">
-                    <label class="form-label small fw-bold">Pilih Pengguna</label>
-                    <select class="form-select" id="roleSelect">
+                    <label class="form-label small fw-bold">Pilih Role</label>
+                    <select class="form-select" id="roleSelect" onchange="togglePasswordInput()">
                         <option value="admin">Admin</option>
-                        <option value="team">Team</option>
+                        <option value="team" selected>Team</option>
                     </select>
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label small fw-bold">Password</label>
-                    <input type="password" class="form-control" id="passwordInput" placeholder="Masukkan password..." required>
+                <div class="mb-4 d-none" id="passwordGroup">
+                    <label class="form-label small fw-bold">Password Admin</label>
+                    <input type="password" class="form-control" id="passwordInput" placeholder="Masukkan password admin...">
                 </div>
 
                 <button type="submit" class="btn btn-orange w-100 py-2">
-                    <i class="bi bi-box-arrow-in-right me-1"></i> Masuk ke Sistem
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Masuk Aplikasi
                 </button>
             </form>
         </div>
@@ -151,19 +172,16 @@
     <div id="appSection" class="d-none">
         <!-- NAVBAR -->
         <nav class="navbar navbar-dark navbar-custom mb-4 no-print">
-            <div class="container-fluid px-4">
+            <div class="container-fluid px-3 px-md-4">
                 <span class="navbar-brand mb-0 h1 d-flex align-items-center gap-2">
                     <i class="bi bi-truck text-warning fs-3"></i>
                     <div>
-                        <span class="fw-bold fs-5">NUSA TIRE</span>
-                        <div class="motto-text text-warning" style="font-size: 0.75rem;">WASTE LESS, VALUE MORE. <span class="text-light fw-normal" style="font-style: italic;">Driving the Green Economy</span></div>
+                        <span class="fw-bold">NUSA TIRE</span>
+                        <small class="d-block text-warning" style="font-size: 0.65rem; font-weight: 600;">WASTE LESS, VALUE MORE. Driving the Green Economy</small>
                     </div>
                 </span>
-                <div class="d-flex align-items-center gap-3">
-                    <span class="badge bg-warning text-dark px-3 py-2 fw-bold" id="userRoleBadge">Role: Admin</span>
-                    <button class="btn btn-outline-light btn-sm admin-only" onclick="backupData()">
-                        <i class="bi bi-download me-1"></i> Backup Data (JSON)
-                    </button>
+                <div class="d-flex align-items-center gap-2 gap-md-3">
+                    <span class="badge bg-warning text-dark px-2 px-md-3 py-2 fw-bold" id="userRoleBadge">Role: Admin</span>
                     <button class="btn btn-danger btn-sm" onclick="logout()">
                         <i class="bi bi-power me-1"></i> Keluar
                     </button>
@@ -171,50 +189,50 @@
             </div>
         </nav>
 
-        <div class="container-fluid px-4 no-print">
+        <div class="container-fluid px-3 px-md-4 no-print">
             <!-- RINGKASAN STATISTIK -->
             <div class="row g-3 mb-4">
-                <div class="col-md-3">
+                <div class="col-6 col-md-3">
                     <div class="card card-custom p-3 stat-card">
                         <div class="text-muted small fw-bold">TOTAL TRANSAKSI</div>
-                        <div class="h3 fw-bold mb-0 text-dark" id="statTotalTx">0</div>
+                        <div class="h4 h3-md fw-bold mb-0 text-dark" id="statTotalTx">0</div>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-6 col-md-3">
                     <div class="card card-custom p-3 stat-card stat-card-blue">
                         <div class="text-muted small fw-bold">TOTAL TONASE</div>
-                        <div class="h3 fw-bold mb-0 text-info" id="statTotalTon">0 Ton</div>
+                        <div class="h4 h3-md fw-bold mb-0 text-info" id="statTotalTon">0 Ton</div>
                     </div>
                 </div>
-                <div class="col-md-3 admin-only">
+                <div class="col-6 col-md-3 admin-only">
                     <div class="card card-custom p-3 stat-card">
                         <div class="text-muted small fw-bold">TOTAL OMSET JUAL</div>
-                        <div class="h3 fw-bold mb-0 text-primary" id="statTotalJual">Rp 0</div>
+                        <div class="h4 h3-md fw-bold mb-0 text-primary" id="statTotalJual">Rp 0</div>
                     </div>
                 </div>
-                <div class="col-md-3 admin-only">
+                <div class="col-6 col-md-3 admin-only">
                     <div class="card card-custom p-3 stat-card stat-card-green">
                         <div class="text-muted small fw-bold">TOTAL PROFIT BERSIH</div>
-                        <div class="h3 fw-bold mb-0 text-success" id="statTotalProfit">Rp 0</div>
+                        <div class="h4 h3-md fw-bold mb-0 text-success" id="statTotalProfit">Rp 0</div>
                     </div>
                 </div>
             </div>
 
             <div class="row g-4">
-                <!-- FORM INPUT / REVISI (HANYA UNTUK ADMIN) -->
+                <!-- FORM INPUT -->
                 <div class="col-lg-4 admin-only" id="formColumn">
                     <div class="card card-custom">
                         <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
-                            <span id="formTitle"><i class="bi bi-plus-circle text-warning me-2"></i>Input Survey & Transaksi</span>
-                            <button class="btn btn-sm btn-link text-secondary d-none" id="btnCancelEdit" onclick="resetForm()">Batal Revisi</button>
+                            <span id="formTitle"><i class="bi bi-plus-circle text-warning me-2"></i>Input Transaksi</span>
+                            <button class="btn btn-sm btn-link text-secondary d-none" id="btnCancelEdit" onclick="resetForm()">Batal</button>
                         </div>
-                        <div class="card-body p-4">
+                        <div class="card-body p-3 p-md-4">
                             <form id="txForm" onsubmit="saveTransaction(event)">
                                 <input type="hidden" id="editIndex" value="-1">
 
                                 <div class="mb-3">
                                     <label class="form-label small fw-bold">Nama Perusahaan / Supplier</label>
-                                    <input type="text" class="form-control" id="company" placeholder="PT. Kutai Makmur / CV. Borneo" required>
+                                    <input type="text" class="form-control" id="company" placeholder="PT. Kutai Makmur" required>
                                 </div>
 
                                 <div class="mb-3">
@@ -223,7 +241,7 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    <label class="form-label small fw-bold">Wilayah / Kabupaten (Kaltim)</label>
+                                    <label class="form-label small fw-bold">Wilayah</label>
                                     <select class="form-select" id="origin" required>
                                         <option value="" selected disabled>Pilih Wilayah...</option>
                                         <option value="Samarinda">Samarinda</option>
@@ -239,26 +257,19 @@
                                     </select>
                                 </div>
 
-                                <!-- INPUT LOKASI BAN (ALAMAT & LINK MAPS) -->
                                 <div class="mb-3">
-                                    <label class="form-label small fw-bold text-dark"><i class="bi bi-pin-map-fill me-1 text-warning"></i>Nama / Detail Lokasi Ban</label>
-                                    <input type="text" class="form-control" id="tireLocation" placeholder="Contoh: Workshop KM 13 / Stockpile Pit A" required>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label small fw-bold text-warning"><i class="bi bi-geo-alt-fill me-1"></i>Link Google Maps Lokasi Ban</label>
-                                    <div class="input-group mb-1">
+                                    <label class="form-label small fw-bold text-success"><i class="bi bi-geo-alt me-1"></i>Link Google Maps Lokasi Ban</label>
+                                    <div class="input-group">
                                         <input type="url" class="form-control" id="tireMapUrl" placeholder="https://maps.app.goo.gl/..." required>
-                                        <button class="btn btn-outline-warning text-dark" type="button" onclick="openMapUrlFromInput('tireMapUrl')">
+                                        <button class="btn btn-outline-success" type="button" onclick="openMapUrlFromInput('tireMapUrl')">
                                             <i class="bi bi-box-arrow-up-right"></i>
                                         </button>
                                     </div>
                                 </div>
 
-                                <!-- INPUT LINK GOOGLE MAPS LOKASI MUAT & BONGKAR -->
                                 <div class="mb-3">
                                     <label class="form-label small fw-bold text-primary"><i class="bi bi-geo-alt-fill me-1"></i>Link Google Maps Lokasi Muat</label>
-                                    <div class="input-group mb-1">
+                                    <div class="input-group">
                                         <input type="url" class="form-control" id="loadMapUrl" placeholder="https://maps.app.goo.gl/..." required>
                                         <button class="btn btn-outline-primary" type="button" onclick="openMapUrlFromInput('loadMapUrl')">
                                             <i class="bi bi-box-arrow-up-right"></i>
@@ -268,7 +279,7 @@
 
                                 <div class="mb-3">
                                     <label class="form-label small fw-bold text-danger"><i class="bi bi-geo-fill me-1"></i>Link Google Maps Lokasi Bongkar</label>
-                                    <div class="input-group mb-1">
+                                    <div class="input-group">
                                         <input type="url" class="form-control" id="unloadMapUrl" placeholder="https://maps.app.goo.gl/..." required>
                                         <button class="btn btn-outline-danger" type="button" onclick="openMapUrlFromInput('unloadMapUrl')">
                                             <i class="bi bi-box-arrow-up-right"></i>
@@ -276,18 +287,17 @@
                                     </div>
                                 </div>
 
-                                <!-- INPUT JUMLAH BAN (DENGAN PEMFORMATAN TANDA BACA OTOMATIS) -->
                                 <div class="mb-3">
-                                    <label class="form-label small fw-bold">Jumlah / Volume Ban (Ton)</label>
+                                    <label class="form-label small fw-bold">Jumlah Ban (Ton)</label>
                                     <input type="text" class="form-control" id="weight" placeholder="0" oninput="formatCurrencyInput(this); calculateTotal();" required>
                                 </div>
 
                                 <div class="row g-2 mb-3">
-                                    <div class="col-md-6">
+                                    <div class="col-6">
                                         <label class="form-label small fw-bold">Harga Beli / Ton (Rp)</label>
                                         <input type="text" class="form-control" id="buyPrice" placeholder="0" oninput="formatCurrencyInput(this); calculateTotal();" required>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-6">
                                         <label class="form-label small fw-bold">Harga Jual / Ton (Rp)</label>
                                         <input type="text" class="form-control" id="sellPrice" placeholder="0" oninput="formatCurrencyInput(this); calculateTotal();" required>
                                     </div>
@@ -298,8 +308,11 @@
                                     <input type="text" class="form-control" id="extraFee" placeholder="0" oninput="formatCurrencyInput(this); calculateTotal();">
                                 </div>
 
-                                <!-- RINGKASAN KALKULASI HASIL & ESTIMASI TONGKANG -->
                                 <div class="p-3 bg-light rounded border mb-4">
+                                    <div class="d-flex justify-content-between small text-muted mb-1">
+                                        <span>Estimasi Tongkang (4.000 T):</span>
+                                        <span id="displayBarge" class="fw-bold text-dark">0 Tongkang</span>
+                                    </div>
                                     <div class="d-flex justify-content-between small text-muted mb-1">
                                         <span>Total Beli + Biaya:</span>
                                         <span id="displayTotalCapital" class="fw-bold text-dark">Rp 0</span>
@@ -309,13 +322,9 @@
                                         <span id="displayTotalSales" class="fw-bold text-primary">Rp 0</span>
                                     </div>
                                     <hr class="my-1">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div class="d-flex justify-content-between align-items-center">
                                         <span class="fw-bold small">Estimasi Profit Bersih:</span>
                                         <span id="displayProfit" class="fw-bold text-success fs-6">Rp 0</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center bg-white p-2 rounded border">
-                                        <span class="small fw-bold text-secondary"><i class="bi bi-water me-1"></i>Estimasi Tongkang (4.000 T/barge):</span>
-                                        <span id="displayBarge" class="fw-bold text-dark fs-6">0 Tongkang</span>
                                     </div>
                                 </div>
 
@@ -327,29 +336,29 @@
                     </div>
                 </div>
 
-                <!-- TABEL DAFTAR TRANSAKSI -->
+                <!-- TABEL DATA -->
                 <div class="col-lg-8" id="tableColumn">
                     <div class="card card-custom">
                         <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
                             <span><i class="bi bi-table text-primary me-2"></i>Riwayat Survey & Transaksi</span>
                             <span class="badge bg-secondary" id="badgeCount">0 Data</span>
                         </div>
-                        <div class="card-body p-0">
+                        <div class="card-body p-2 p-md-0">
                             <div class="table-responsive">
-                                <table class="table table-hover table-custom align-middle mb-0">
-                                    <thead>
+                                <table class="table table-hover table-custom table-mobile-responsive align-middle mb-0">
+                                    <thead class="table-dark">
                                         <tr>
                                             <th class="ps-3">Tanggal & Kode</th>
                                             <th>Perusahaan / Pemilik</th>
-                                            <th>Lokasi & Peta</th>
-                                            <th>Volume & Estimasi Tongkang</th>
+                                            <th>Lokasi Maps</th>
+                                            <th>Volume & Tongkang</th>
                                             <th class="admin-only">Beli / Jual / Biaya</th>
                                             <th class="admin-only">Profit Bersih</th>
                                             <th class="text-center admin-only">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody id="txTableBody">
-                                        <!-- Dynamic rows -->
+                                        <!-- Dynamic Data -->
                                     </tbody>
                                 </table>
                             </div>
@@ -360,14 +369,14 @@
         </div>
     </div>
 
-    <!-- AREA CETAK A4 (HANYA TERLIHAT SAAT PRINT UNTUK PEMBELI) -->
+    <!-- AREA CETAK A4 -->
     <div id="printArea" class="d-none">
         <div class="border p-4">
             <div class="row border-bottom pb-3 mb-3 align-items-center">
                 <div class="col-8">
                     <h3 class="fw-bold mb-0" style="color: #0F172A;">NUSA TIRE</h3>
-                    <div class="fw-bold text-success small mb-1">WASTE LESS, VALUE MORE.</div>
-                    <p class="mb-0 text-muted small">Driving the Green Economy — Nota Transaksi Ban Bekas</p>
+                    <small class="text-warning fw-bold d-block mb-1">WASTE LESS, VALUE MORE. Driving the Green Economy</small>
+                    <p class="mb-0 text-muted small">NOTA TRANSAKSI PENJUALAN BAN BEKAS</p>
                 </div>
                 <div class="col-4 text-end">
                     <h6 class="fw-bold text-danger mb-1" id="printCode">KODE-TX</h6>
@@ -377,18 +386,17 @@
 
             <div class="row mb-4">
                 <div class="col-6">
-                    <h6 class="fw-bold border-bottom pb-1">INFORMASI PENJUAL / SUPPLIER</h6>
+                    <h6 class="fw-bold border-bottom pb-1">INFORMASI SUPPLIER</h6>
                     <table class="table table-sm table-borderless small">
                         <tr><td width="35%" class="text-muted">Perusahaan</td><td>: <strong id="printCompany">-</strong></td></tr>
                         <tr><td class="text-muted">Pemilik / PJ</td><td>: <span id="printOwner">-</span></td></tr>
                         <tr><td class="text-muted">Wilayah</td><td>: <span id="printOrigin">-</span></td></tr>
-                        <tr><td class="text-muted">Lokasi Ban</td><td>: <span id="printTireLocation">-</span></td></tr>
                     </table>
                 </div>
                 <div class="col-6">
                     <h6 class="fw-bold border-bottom pb-1">RINCIAN BARANG</h6>
                     <table class="table table-sm table-borderless small">
-                        <tr><td width="40%" class="text-muted">Komoditas</td><td>: Ban Bekas (Berbagai Ukuran)</td></tr>
+                        <tr><td width="40%" class="text-muted">Komoditas</td><td>: Ban Bekas</td></tr>
                         <tr><td class="text-muted">Berat Total</td><td>: <strong id="printWeight">- Ton</strong></td></tr>
                         <tr><td class="text-muted">Est. Tongkang</td><td>: <span id="printBarge">-</span></td></tr>
                         <tr><td class="text-muted">Harga / Ton</td><td>: <span id="printPrice">-</span></td></tr>
@@ -405,111 +413,142 @@
                 <div class="col-6">
                     <p class="mb-5 small">Pihak Penjual / Supplier,</p>
                     <p class="fw-bold mb-0">( <span id="printSignOwner">------------------</span> )</p>
-                    <small class="text-muted">Tanda Tangan & Nama Terang</small>
                 </div>
                 <div class="col-6">
                     <p class="mb-5 small">Penerima / Pembeli,</p>
                     <p class="fw-bold mb-0">( NUSA TIRE )</p>
-                    <small class="text-muted">Tanda Tangan & Stempel</small>
                 </div>
-            </div>
-
-            <div class="mt-5 pt-3 border-top text-center text-muted small">
-                <em>Dokumen ini dicetak secara otomatis dan sah sebagai bukti serah terima transaksi ban bekas NUSA TIRE.</em>
             </div>
         </div>
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
+    <!-- JAVASCRIPT LOGIC & FIREBASE -->
     <script>
-        // Store Data Transaksi
-        let transactions = JSON.parse(localStorage.getItem('kaltim_tire_tx_v7')) || [];
+        // ==========================================
+        // CONFIGURASI FIREBASE (Ganti dengan Milik Anda)
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyYOUR_API_KEY_HERE",
+            authDomain: "your-project.firebaseapp.com",
+            databaseURL: "https://your-project-default-rtdb.firebaseio.com",
+            projectId: "your-project",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        };
+
+        // Inisialisasi Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let transactions = [];
         let currentRole = null;
+
+        // Inisialisasi tampilan awal form login
+        togglePasswordInput();
+
+        function togglePasswordInput() {
+            const role = document.getElementById('roleSelect').value;
+            const pwdGroup = document.getElementById('passwordGroup');
+            const pwdInput = document.getElementById('passwordInput');
+
+            if (role === 'admin') {
+                pwdGroup.classList.remove('d-none');
+                pwdInput.required = true;
+            } else {
+                pwdGroup.classList.add('d-none');
+                pwdInput.required = false;
+                pwdInput.value = '';
+            }
+        }
+
+        // Sync Data Realtime dari Firebase
+        db.ref('transactions').on('value', (snapshot) => {
+            const data = snapshot.val();
+            transactions = [];
+            if (data) {
+                for (let key in data) {
+                    transactions.push({ firebaseKey: key, ...data[key] });
+                }
+            }
+            renderTable();
+        });
 
         // Login Handler
         function handleLogin(e) {
             e.preventDefault();
             const role = document.getElementById('roleSelect').value;
             const password = document.getElementById('passwordInput').value;
-            const alertEl = document.getElementById('loginAlert');
 
-            if (role === 'admin' && password === 'Janice.11') {
-                currentRole = 'admin';
-            } else if (role === 'team' && password === 'bismillah') {
-                currentRole = 'team';
-            } else {
-                alertEl.classList.remove('d-none');
-                return;
+            if (role === 'admin') {
+                if (password === 'Janice.11') {
+                    currentRole = 'admin';
+                } else {
+                    document.getElementById('loginAlert').classList.remove('d-none');
+                    return;
+                }
+            } else if (role === 'team') {
+                currentRole = 'team'; // Bebas masuk tanpa password
             }
 
-            alertEl.classList.add('d-none');
+            document.getElementById('loginAlert').classList.add('d-none');
             document.getElementById('loginSection').classList.add('d-none');
             document.getElementById('appSection').classList.remove('d-none');
-            document.getElementById('passwordInput').value = '';
 
             applyRolePermissions();
             renderTable();
         }
 
-        // Apply Access Permissions Based on Role
         function applyRolePermissions() {
             const adminOnlyElements = document.querySelectorAll('.admin-only');
             const tableCol = document.getElementById('tableColumn');
             const badge = document.getElementById('userRoleBadge');
 
             if (currentRole === 'team') {
-                badge.className = 'badge bg-info text-dark px-3 py-2 fw-bold';
+                badge.className = 'badge bg-info text-dark px-2 px-md-3 py-2 fw-bold';
                 badge.innerText = 'Role: Team';
                 adminOnlyElements.forEach(el => el.classList.add('d-none'));
                 tableCol.className = 'col-lg-12';
             } else {
-                badge.className = 'badge bg-warning text-dark px-3 py-2 fw-bold';
+                badge.className = 'badge bg-warning text-dark px-2 px-md-3 py-2 fw-bold';
                 badge.innerText = 'Role: Admin';
                 adminOnlyElements.forEach(el => el.classList.remove('d-none'));
                 tableCol.className = 'col-lg-8';
             }
         }
 
-        // Logout Handler
         function logout() {
             currentRole = null;
             document.getElementById('appSection').classList.add('d-none');
             document.getElementById('loginSection').classList.remove('d-none');
+            togglePasswordInput();
         }
 
-        // Format Currency Display (IDR)
         const formatRp = (number) => {
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(number);
         };
 
-        // Format Otomatis Titik Ribuan pada Input Angka Saat Diketik
+        const formatNumber = (number) => {
+            return new Intl.NumberFormat('id-ID').format(number);
+        };
+
         function formatCurrencyInput(input) {
-            let value = input.value.replace(/\D/g, ''); // Hapus semua karakter non-angka
-            if (value === '') {
-                input.value = '';
-                return;
-            }
-            // Format angka dengan pemisah titik ribuan secara otomatis
-            input.value = new Intl.NumberFormat('id-ID').format(parseInt(value, 10));
+            let value = input.value.replace(/\D/g, '');
+            if (value === '') { input.value = ''; return; }
+            input.value = formatNumber(parseInt(value, 10));
         }
 
-        // Helper Membaca Nilai Angka Murni dari Input yang Memiliki Titik
         function getRawNumber(id) {
             const val = document.getElementById(id).value.replace(/\D/g, '');
             return parseFloat(val) || 0;
         }
 
-        // Buka Tautan Google Maps dari Form Input
         function openMapUrlFromInput(inputId) {
             const url = document.getElementById(inputId).value.trim();
-            if (url) {
-                window.open(url, '_blank');
-            } else {
-                alert("Masukkan link Google Maps terlebih dahulu.");
-            }
+            if (url) window.open(url, '_blank');
+            else alert("Masukkan link Google Maps terlebih dahulu.");
         }
 
-        // Auto Calculate Form Real-time & Estimasi Tongkang
         function calculateTotal() {
             const weight = getRawNumber('weight');
             const buyPrice = getRawNumber('buyPrice');
@@ -518,31 +557,24 @@
 
             const totalBuy = weight * buyPrice;
             const totalSell = weight * sellPrice;
-            const totalCapital = totalBuy + extraFee;
-            const profit = totalSell - totalCapital;
+            const profit = totalSell - (totalBuy + extraFee);
+            const bargeCount = weight / 4000;
 
-            // Estimasi Tongkang (1 Tongkang = 4.000 Ton)
-            const bargeCount = weight > 0 ? (weight / 4000).toFixed(2) : "0";
-
-            document.getElementById('displayTotalCapital').innerText = formatRp(totalCapital);
+            document.getElementById('displayBarge').innerText = `${bargeCount.toFixed(2)} Tongkang`;
+            document.getElementById('displayTotalCapital').innerText = formatRp(totalBuy + extraFee);
             document.getElementById('displayTotalSales').innerText = formatRp(totalSell);
-            document.getElementById('displayBarge').innerText = `${bargeCount} Tongkang`;
             
             const profitEl = document.getElementById('displayProfit');
             profitEl.innerText = formatRp(profit);
-            if (profit >= 0) {
-                profitEl.className = "fw-bold text-success fs-6";
-            } else {
-                profitEl.className = "fw-bold text-danger fs-6";
-            }
+            profitEl.className = profit >= 0 ? "fw-bold text-success fs-6" : "fw-bold text-danger fs-6";
         }
 
-        // Save / Update Transaction
+        // SIMPAN / UPDATE KE FIREBASE DATABASE
         function saveTransaction(e) {
             e.preventDefault();
             if (currentRole !== 'admin') return;
 
-            const editIndex = parseInt(document.getElementById('editIndex').value);
+            const editIndex = document.getElementById('editIndex').value;
             const weight = getRawNumber('weight');
             const buyPrice = getRawNumber('buyPrice');
             const sellPrice = getRawNumber('sellPrice');
@@ -551,15 +583,13 @@
             const totalBuy = weight * buyPrice;
             const totalSell = weight * sellPrice;
             const profit = totalSell - (totalBuy + extraFee);
-            const bargeCount = weight > 0 ? (weight / 4000).toFixed(2) : "0";
 
             const txData = {
-                id: editIndex >= 0 ? transactions[editIndex].id : 'TX-' + Date.now().toString().slice(-6),
-                date: editIndex >= 0 ? transactions[editIndex].date : new Date().toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }),
+                id: editIndex !== "-1" ? transactions[editIndex].id : 'TX-' + Date.now().toString().slice(-6),
+                date: editIndex !== "-1" ? transactions[editIndex].date : new Date().toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }),
                 company: document.getElementById('company').value,
                 owner: document.getElementById('owner').value,
                 origin: document.getElementById('origin').value,
-                tireLocation: document.getElementById('tireLocation').value,
                 tireMapUrl: document.getElementById('tireMapUrl').value.trim(),
                 loadMapUrl: document.getElementById('loadMapUrl').value.trim(),
                 unloadMapUrl: document.getElementById('unloadMapUrl').value.trim(),
@@ -569,22 +599,19 @@
                 extraFee: extraFee,
                 totalBuy: totalBuy,
                 totalSell: totalSell,
-                profit: profit,
-                bargeCount: bargeCount
+                profit: profit
             };
 
-            if (editIndex >= 0) {
-                transactions[editIndex] = txData;
+            if (editIndex !== "-1") {
+                const key = transactions[editIndex].firebaseKey;
+                db.ref('transactions/' + key).set(txData);
             } else {
-                transactions.unshift(txData);
+                db.ref('transactions').push(txData);
             }
 
-            localStorage.setItem('kaltim_tire_tx_v7', JSON.stringify(transactions));
             resetForm();
-            renderTable();
         }
 
-        // Render Table & Stats
         function renderTable() {
             const tbody = document.getElementById('txTableBody');
             tbody.innerHTML = '';
@@ -598,71 +625,66 @@
                 totalJual += tx.totalSell;
                 totalProfit += tx.profit;
 
-                const formattedWeight = new Intl.NumberFormat('id-ID').format(tx.weight);
+                const bargeCount = (tx.weight / 4000).toFixed(2);
 
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td class="ps-3">
+                    <td class="ps-md-3" data-label="KODE & TGL">
                         <div class="fw-bold">${tx.id}</div>
                         <small class="text-muted">${tx.date}</small>
                     </td>
-                    <td>
-                        <div class="fw-bold">${tx.company}</div>
-                        <small class="text-muted"><i class="bi bi-person me-1"></i>${tx.owner}</small>
+                    <td data-label="SUPPLIER">
+                        <div class="fw-bold text-end text-md-start">${tx.company}</div>
+                        <small class="text-muted d-block text-end text-md-start"><i class="bi bi-person me-1"></i>${tx.owner}</small>
                     </td>
-                    <td>
-                        <div class="fw-bold text-dark mb-1"><i class="bi bi-pin-map text-warning me-1"></i>${tx.tireLocation || '-'}</div>
-                        <span class="badge bg-light text-dark border mb-1"><i class="bi bi-geo-alt text-danger me-1"></i>${tx.origin}</span>
-                        <div class="d-flex flex-wrap gap-1 mt-1">
-                            <a href="${tx.tireMapUrl}" target="_blank" class="btn btn-xs btn-outline-warning text-dark py-0 px-2" style="font-size: 0.72rem;">
-                                <i class="bi bi-geo-alt-fill me-1"></i> Lokasi Ban
+                    <td data-label="LOKASI MAPS">
+                        <div class="d-flex flex-wrap gap-1 justify-content-end justify-content-md-start">
+                            <span class="badge bg-light text-dark border mb-1 w-100 text-center text-md-start"><i class="bi bi-geo-alt text-danger me-1"></i>${tx.origin}</span>
+                            <a href="${tx.tireMapUrl}" target="_blank" class="btn btn-xs btn-outline-success py-0 px-2" style="font-size: 0.7rem;">
+                                <i class="bi bi-geo-alt me-1"></i> Ban
                             </a>
-                            <a href="${tx.loadMapUrl}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-2" style="font-size: 0.72rem;">
-                                <i class="bi bi-geo-alt-fill me-1"></i> Lokasi Muat
+                            <a href="${tx.loadMapUrl}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-2" style="font-size: 0.7rem;">
+                                <i class="bi bi-geo-alt-fill me-1"></i> Muat
                             </a>
-                            <a href="${tx.unloadMapUrl}" target="_blank" class="btn btn-xs btn-outline-danger py-0 px-2" style="font-size: 0.72rem;">
-                                <i class="bi bi-geo-fill me-1"></i> Lokasi Bongkar
+                            <a href="${tx.unloadMapUrl}" target="_blank" class="btn btn-xs btn-outline-danger py-0 px-2" style="font-size: 0.7rem;">
+                                <i class="bi bi-geo-fill me-1"></i> Bongkar
                             </a>
                         </div>
                     </td>
-                    <td>
-                        <div class="fw-bold text-dark">${formattedWeight} Ton</div>
-                        <small class="text-muted"><i class="bi bi-water me-1"></i>~${tx.bargeCount || '0'} Tongkang</small>
+                    <td data-label="VOLUME">
+                        <div class="text-end text-md-start">
+                            <div class="fw-bold">${formatNumber(tx.weight)} Ton</div>
+                            <small class="text-muted">${bargeCount} Tongkang</small>
+                        </div>
                     </td>
-                    <td class="small admin-only ${currentRole === 'team' ? 'd-none' : ''}">
-                        <div>Beli: ${formatRp(tx.buyPrice)}/t</div>
-                        <div>Jual: ${formatRp(tx.sellPrice)}/t</div>
-                        <div class="text-muted">Biaya: ${formatRp(tx.extraFee)}</div>
+                    <td data-label="HARGA & BIAYA" class="small admin-only ${currentRole === 'team' ? 'd-none' : ''}">
+                        <div class="text-end text-md-start">
+                            <div>Beli: ${formatRp(tx.buyPrice)}/t</div>
+                            <div>Jual: ${formatRp(tx.sellPrice)}/t</div>
+                            <div class="text-muted">Biaya: ${formatRp(tx.extraFee)}</div>
+                        </div>
                     </td>
-                    <td class="fw-bold admin-only ${currentRole === 'team' ? 'd-none' : ''} ${tx.profit >= 0 ? 'text-success' : 'text-danger'}">
-                        ${formatRp(tx.profit)}
+                    <td data-label="PROFIT BERSIH" class="fw-bold admin-only ${currentRole === 'team' ? 'd-none' : ''} ${tx.profit >= 0 ? 'text-success' : 'text-danger'}">
+                        <div class="text-end text-md-start">${formatRp(tx.profit)}</div>
                     </td>
-                    <td class="text-center admin-only ${currentRole === 'team' ? 'd-none' : ''}">
+                    <td data-label="AKSI" class="text-end text-md-center admin-only ${currentRole === 'team' ? 'd-none' : ''}">
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary" onclick="printReceipt(${index})" title="Cetak Nota A4">
-                                <i class="bi bi-printer"></i>
-                            </button>
-                            <button class="btn btn-outline-warning" onclick="editTransaction(${index})" title="Revisi">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-outline-danger" onclick="deleteTransaction(${index})" title="Hapus">
-                                <i class="bi bi-trash"></i>
-                            </button>
+                            <button class="btn btn-outline-primary" onclick="printReceipt(${index})"><i class="bi bi-printer"></i></button>
+                            <button class="btn btn-outline-warning" onclick="editTransaction(${index})"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-outline-danger" onclick="deleteTransaction(${index})"><i class="bi bi-trash"></i></button>
                         </div>
                     </td>
                 `;
                 tbody.appendChild(row);
             });
 
-            // Update Ringkasan Statistik
             document.getElementById('statTotalTx').innerText = transactions.length;
-            document.getElementById('statTotalTon').innerText = `${new Intl.NumberFormat('id-ID').format(totalTon)} Ton`;
+            document.getElementById('statTotalTon').innerText = `${formatNumber(totalTon)} Ton`;
             document.getElementById('statTotalJual').innerText = formatRp(totalJual);
             document.getElementById('statTotalProfit').innerText = formatRp(totalProfit);
             document.getElementById('badgeCount').innerText = `${transactions.length} Data`;
         }
 
-        // Edit Transaction (Revisi Data)
         function editTransaction(index) {
             if (currentRole !== 'admin') return;
             const tx = transactions[index];
@@ -670,44 +692,42 @@
             document.getElementById('company').value = tx.company;
             document.getElementById('owner').value = tx.owner;
             document.getElementById('origin').value = tx.origin;
-            document.getElementById('tireLocation').value = tx.tireLocation || '';
-            document.getElementById('tireMapUrl').value = tx.tireMapUrl || '';
-            document.getElementById('loadMapUrl').value = tx.loadMapUrl || '';
-            document.getElementById('unloadMapUrl').value = tx.unloadMapUrl || '';
-            
-            document.getElementById('weight').value = new Intl.NumberFormat('id-ID').format(tx.weight);
-            document.getElementById('buyPrice').value = new Intl.NumberFormat('id-ID').format(tx.buyPrice);
-            document.getElementById('sellPrice').value = new Intl.NumberFormat('id-ID').format(tx.sellPrice);
-            document.getElementById('extraFee').value = new Intl.NumberFormat('id-ID').format(tx.extraFee || 0);
+            document.getElementById('tireMapUrl').value = tx.tireMapUrl;
+            document.getElementById('loadMapUrl').value = tx.loadMapUrl;
+            document.getElementById('unloadMapUrl').value = tx.unloadMapUrl;
+            document.getElementById('weight').value = formatNumber(tx.weight);
+            document.getElementById('buyPrice').value = formatNumber(tx.buyPrice);
+            document.getElementById('sellPrice').value = formatNumber(tx.sellPrice);
+            document.getElementById('extraFee').value = formatNumber(tx.extraFee || 0);
             
             calculateTotal();
 
             document.getElementById('formTitle').innerHTML = `<i class="bi bi-pencil-square text-warning me-2"></i>Revisi Transaksi ${tx.id}`;
             document.getElementById('btnSubmit').innerHTML = `<i class="bi bi-arrow-clockwise me-1"></i> Simpan Revisi`;
             document.getElementById('btnCancelEdit').classList.remove('d-none');
+            
+            if(window.innerWidth <= 768) {
+                document.getElementById('formColumn').scrollIntoView({ behavior: 'smooth' });
+            }
         }
 
-        // Reset Form
         function resetForm() {
             document.getElementById('txForm').reset();
             document.getElementById('editIndex').value = -1;
             calculateTotal();
-            document.getElementById('formTitle').innerHTML = `<i class="bi bi-plus-circle text-warning me-2"></i>Input Survey & Transaksi`;
+            document.getElementById('formTitle').innerHTML = `<i class="bi bi-plus-circle text-warning me-2"></i>Input Transaksi`;
             document.getElementById('btnSubmit').innerHTML = `<i class="bi bi-check-circle me-1"></i> Simpan Transaksi`;
             document.getElementById('btnCancelEdit').classList.add('d-none');
         }
 
-        // Delete Transaction
         function deleteTransaction(index) {
             if (currentRole !== 'admin') return;
-            if (confirm("Apakah Anda yakin ingin menghapus catatan transaksi ini?")) {
-                transactions.splice(index, 1);
-                localStorage.setItem('kaltim_tire_tx_v7', JSON.stringify(transactions));
-                renderTable();
+            if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
+                const key = transactions[index].firebaseKey;
+                db.ref('transactions/' + key).remove();
             }
         }
 
-        // Print Receipt (Cetak Nota A4 Pembeli)
         function printReceipt(index) {
             const tx = transactions[index];
             document.getElementById('printCode').innerText = tx.id;
@@ -715,9 +735,8 @@
             document.getElementById('printCompany').innerText = tx.company;
             document.getElementById('printOwner').innerText = tx.owner;
             document.getElementById('printOrigin').innerText = tx.origin;
-            document.getElementById('printTireLocation').innerText = tx.tireLocation || '-';
-            document.getElementById('printWeight').innerText = `${new Intl.NumberFormat('id-ID').format(tx.weight)} Ton`;
-            document.getElementById('printBarge').innerText = `~${tx.bargeCount || '0'} Tongkang`;
+            document.getElementById('printWeight').innerText = `${formatNumber(tx.weight)} Ton`;
+            document.getElementById('printBarge').innerText = `${(tx.weight / 4000).toFixed(2)} Tongkang`;
             document.getElementById('printPrice').innerText = `${formatRp(tx.sellPrice)} / Ton`;
             document.getElementById('printTotal').innerText = formatRp(tx.totalSell);
             document.getElementById('printSignOwner').innerText = tx.owner;
@@ -726,17 +745,6 @@
             printArea.classList.remove('d-none');
             window.print();
             printArea.classList.add('d-none');
-        }
-
-        // Backup Data JSON
-        function backupData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(transactions, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `backup_survey_ban_nusa_tire_${new Date().toISOString().slice(0,10)}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
         }
     </script>
 </body>
